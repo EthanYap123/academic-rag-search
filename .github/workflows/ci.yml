@@ -6,6 +6,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -22,24 +25,22 @@ jobs:
           key: onnx-minilm-l6-v2
       - run: pip install -r requirements-dev.txt
       - run: pytest -q
+      - name: Build in-browser demo
+        run: python scripts/build_demo.py _site
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
 
-  deploy:
+  pages:
     needs: test
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    env:
-      HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Deploy to Hugging Face Space
-        if: env.HF_TOKEN != ''
-        run: |
-          pip install huggingface_hub
-          python scripts/deploy_space.py
-      - name: Skip deploy
-        if: env.HF_TOKEN == ''
-        run: echo "HF_TOKEN secret not set, skipping deploy."
+      - id: deploy
+        uses: actions/deploy-pages@v4

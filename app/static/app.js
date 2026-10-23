@@ -25,7 +25,11 @@
 
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+  // The static demo (GitHub Pages) has no server; demo-api.js answers these calls in the browser.
+  const demo = window.DemoAPI;
+
   async function api(path, opts = {}) {
+    if (demo) return demo.request(path, opts);
     const res = await fetch(`api/${path}`, opts);
     let body = null;
     try { body = await res.json(); } catch { /* empty body */ }
@@ -48,8 +52,12 @@
     return parts.join(" · ") || "Introduction";
   }
 
+  function docFile(docId) {
+    return demo ? demo.fileUrl(docId) : `api/documents/${encodeURIComponent(docId)}/file`;
+  }
+
   function fileHref(src) {
-    return `api/documents/${encodeURIComponent(src.doc_id)}/file${src.page ? `#page=${src.page}` : ""}`;
+    return `${docFile(src.doc_id)}${src.page ? `#page=${src.page}` : ""}`;
   }
 
   // Inline markup for answers: paragraphs, "-" / "1." lists, **bold**, and [n] citation chips.
@@ -107,10 +115,13 @@
     try {
       const h = await api("health");
       el.className = "status ok";
-      const mode = h.answer_mode === "gemini" ? `Gemini · ${h.model}` : "Extractive mode";
+      const mode = h.demo ? "In-browser demo" : h.answer_mode === "gemini" ? `Gemini · ${h.model}` : "Extractive mode";
       $("#status-text").textContent = `${mode} · ${h.documents} docs · ${h.chunks} chunks`;
       $("#status").title = `Embeddings: ${h.embedding_model}\nVector store: ${h.vector_store}`;
-      $("#about-foot").textContent = `Running now: ${h.answer_mode === "gemini" ? `Gemini (${h.model})` : "extractive answerer (no API key set)"} · ${h.embedding_model} · ${h.vector_store}`;
+      const answerer = h.demo
+        ? "static demo, so the extractive answerer runs in your browser and uploads stay in this tab"
+        : h.answer_mode === "gemini" ? `Gemini (${h.model})` : "extractive answerer (no API key set)";
+      $("#about-foot").textContent = `Running now: ${answerer} · ${h.embedding_model} · ${h.vector_store}`;
       $("#drop-hint").textContent = `PDF, Markdown or text up to ${h.max_upload_mb} MB · drag here or click`;
     } catch {
       el.className = "status err";
@@ -142,7 +153,7 @@
           <div class="doc-meta">${size}${plural(d.chunks, "chunk")}</div>
           <div class="doc-actions">
             <button type="button" class="linkish" data-ask="${esc(d.doc_id)}">Ask this doc</button>
-            <a class="linkish" href="api/documents/${encodeURIComponent(d.doc_id)}/file" target="_blank" rel="noopener">Open</a>
+            <a class="linkish" href="${esc(docFile(d.doc_id))}" target="_blank" rel="noopener">Open</a>
             ${d.source === "upload" ? `<button type="button" class="linkish danger" data-del="${esc(d.doc_id)}">Remove</button>` : ""}
           </div>
         </div>
@@ -239,7 +250,10 @@
   function addPending() {
     const el = document.createElement("div");
     el.className = "msg bot";
-    el.innerHTML = `<div class="card"><div class="thinking"><i></i><i></i><i></i><span>Retrieving passages…</span></div></div>`;
+    const label = demo && !demo.modelReady
+      ? "Loading the embedding model in your browser (about 25 MB, first question only)…"
+      : "Retrieving passages…";
+    el.innerHTML = `<div class="card"><div class="thinking"><i></i><i></i><i></i><span>${label}</span></div></div>`;
     thread.appendChild(el);
     thread.scrollTop = thread.scrollHeight;
     return el;

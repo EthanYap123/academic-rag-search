@@ -2,9 +2,11 @@
 
 Ask questions about policy handbooks and academic documents, and get answers built **only** from those documents. Every claim carries a citation to the exact document, page and section. If the documents don't cover a question, the app says so instead of guessing.
 
-**Live demo:** deploying to Hugging Face Spaces (link coming soon)
+**Live demo:** https://ethanyap123.github.io/academic-rag-search/
 
-![Python](https://img.shields.io/badge/Python-3.12-1f5c4d) ![FastAPI](https://img.shields.io/badge/FastAPI-0.161-1f5c4d) ![ChromaDB](https://img.shields.io/badge/ChromaDB-1.5-1f5c4d) ![Tests](https://img.shields.io/badge/tests-25%20passing-1f5c4d)
+The demo is a static build. The same chunks, embedding model and answering logic run in your browser, so it's free to host and needs no server. See [Deployment](#deployment).
+
+![Python](https://img.shields.io/badge/Python-3.12-1f5c4d) ![FastAPI](https://img.shields.io/badge/FastAPI-0.161-1f5c4d) ![ChromaDB](https://img.shields.io/badge/ChromaDB-1.5-1f5c4d) ![Tests](https://img.shields.io/badge/tests-26%20passing-1f5c4d)
 
 ## Features
 
@@ -121,21 +123,38 @@ Interactive docs are at `/docs`.
 pytest -q
 ```
 
-The 25 tests cover:
+The 26 tests cover:
 
 - Parsing: titles, pages, sections, header stripping, bullets, overlap.
 - Retrieval and citations: the right page and section are cited, and extractive answers are verbatim quotes.
 - Refusing off-topic questions.
 - The Gemini path, with the network call mocked: valid citations, uncited answers rejected, `NOT_FOUND`, and API failure falling back.
 - The full API: upload, ask, open and delete; rejected uploads; protected samples.
+- The static demo build.
 
 ## Deployment
 
-The app runs as a Docker Space on Hugging Face ([`Dockerfile`](Dockerfile)). The embedding model is baked into the image, so a cold start needs no downloads.
+### Live demo (GitHub Pages)
 
-- The CI workflow runs the tests on every push. When the repo has an `HF_TOKEN` secret, it then publishes the app to the Space with [`scripts/deploy_space.py`](scripts/deploy_space.py).
-- An optional `GEMINI_API_KEY` repo secret is copied to the Space as a secret.
-- Uploaded documents on the Space are kept until the Space restarts. The sample documents are always re-indexed.
+On every push to `main`, the [CI workflow](.github/workflows/ci.yml) runs the tests, builds the static demo with [`scripts/build_demo.py`](scripts/build_demo.py) and publishes it to GitHub Pages.
+
+- **Build step.** The Python pipeline parses, chunks and embeds the sample handbooks and writes them to `index.json` (about 125 KB).
+- **In the browser.** [`app/demo/demo-api.js`](app/demo/demo-api.js) takes the place of the FastAPI backend, and the UI is the same files the server uses.
+  - It embeds questions with the same all-MiniLM-L6-v2 model, via [transformers.js](https://github.com/huggingface/transformers.js); the 25 MB model downloads once per visitor.
+  - It runs the same retrieval re-ranking and extractive answerer.
+  - It parses uploaded PDFs with [pdf.js](https://github.com/mozilla/pdf.js), using the same chunking rules.
+- **Demo limits.** Uploads stay in the browser tab, and Gemini mode needs the server, since an API key can't be shipped to a public page.
+
+To try the demo locally:
+
+```bash
+python scripts/build_demo.py
+python -m http.server 8000 --directory _site
+```
+
+### Full server (Docker)
+
+The [`Dockerfile`](Dockerfile) runs the FastAPI app on port 7860, with the embedding model baked into the image. It runs on any container host. For a free Hugging Face Docker Space, [`scripts/deploy_space.py`](scripts/deploy_space.py) publishes the repo, given an `HF_TOKEN` write token. It also copies an optional `GEMINI_API_KEY` to the Space as a secret.
 
 ## Limitations
 
