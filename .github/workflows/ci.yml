@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Cache embedding model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/chroma
+          key: onnx-minilm-l6-v2
+      - run: pip install -r requirements-dev.txt
+      - run: pytest -q
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Deploy to Hugging Face Space
+        if: env.HF_TOKEN != ''
+        run: |
+          pip install huggingface_hub
+          python scripts/deploy_space.py
+      - name: Skip deploy
+        if: env.HF_TOKEN == ''
+        run: echo "HF_TOKEN secret not set, skipping deploy."

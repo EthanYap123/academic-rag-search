@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+
+# runtime data (rebuilt from data/samples on startup)
+data/chroma/
+data/uploads/
+data/documents.json

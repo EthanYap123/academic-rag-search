@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Academic Resource RAG Search</title>
+  <meta name="description" content="Ask questions about policy handbooks and get grounded answers with page-level citations.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="./">
+      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--accent)"/><path d="M9 9h9a5 5 0 0 1 0 10h-3l5 5" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="10" cy="23" r="1.8" fill="#fff"/></svg>
+      <span>Academic <em>RAG</em> Search</span>
+    </a>
+    <div class="status" id="status" aria-live="polite">
+      <span class="dot"></span><span id="status-text">Connecting…</span>
+    </div>
+    <button class="ghost" id="about-btn" type="button">How it works</button>
+  </header>
+
+  <nav class="mobile-tabs" aria-label="Panels">
+    <button type="button" data-pane="chat" class="active">Chat</button>
+    <button type="button" data-pane="sources">Sources <span class="count" id="m-src-count"></span></button>
+    <button type="button" data-pane="library">Library</button>
+  </nav>
+
+  <main class="layout">
+    <section class="chat pane active" id="pane-chat" aria-label="Conversation">
+      <div class="thread" id="thread">
+        <div class="welcome" id="welcome">
+          <p class="eyebrow">Grounded answers · page-level citations</p>
+          <h1>Ask the handbooks.</h1>
+          <p class="lede">Questions are answered only from the indexed documents. Every claim links to the exact page and section it came from, and if the documents don't cover something, it says so instead of guessing.</p>
+          <div class="suggestions" id="suggestions">
+            <button type="button">What is the penalty for late coursework?</button>
+            <button type="button">What happens if I miss an exam because I was sick?</button>
+            <button type="button">How many books can I borrow, and what are the fines?</button>
+            <button type="button">Can I use generative AI tools in my assignments?</button>
+            <button type="button">How is the internship graded?</button>
+            <button type="button">What is the capital of France?</button>
+          </div>
+        </div>
+      </div>
+
+      <form class="composer" id="composer" autocomplete="off">
+        <div class="composer-top">
+          <div class="mode" role="radiogroup" aria-label="Mode">
+            <label><input type="radio" name="mode" value="ask" checked><span>Ask</span></label>
+            <label><input type="radio" name="mode" value="search"><span>Search</span></label>
+          </div>
+          <label class="scope">
+            <span class="sr-only">Limit to document</span>
+            <select id="scope"><option value="">All documents</option></select>
+          </label>
+        </div>
+        <div class="composer-row">
+          <textarea id="question" rows="1" maxlength="500" placeholder="Ask about attendance, exams, conduct, the library…" aria-label="Question"></textarea>
+          <button class="send" type="submit" id="send" aria-label="Send">
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <aside class="side" aria-label="Sources and library">
+      <div class="side-tabs" role="tablist">
+        <button type="button" role="tab" data-pane="sources" class="active" aria-selected="true">Sources <span class="count" id="src-count"></span></button>
+        <button type="button" role="tab" data-pane="library" aria-selected="false">Library <span class="count" id="lib-count"></span></button>
+      </div>
+
+      <div class="pane active" id="pane-sources">
+        <div class="empty" id="sources-empty">
+          <svg width="40" height="40" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z M15 3v4h4 M9 12h7 M9 16h5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/></svg>
+          <p>Source passages for the selected answer appear here, with their document, page and section.</p>
+        </div>
+        <div id="sources"></div>
+      </div>
+
+      <div class="pane" id="pane-library">
+        <label class="dropzone" id="dropzone">
+          <input type="file" id="file-input" accept=".pdf,.md,.markdown,.txt" hidden>
+          <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <strong>Upload a document</strong>
+          <span id="drop-hint">PDF, Markdown or text · drag here or click</span>
+        </label>
+        <div class="upload-msg" id="upload-msg" role="status" aria-live="polite"></div>
+        <ul class="doclist" id="doclist"></ul>
+      </div>
+    </aside>
+  </main>
+
+  <dialog id="about">
+    <form method="dialog" class="about">
+      <h2>How it works</h2>
+      <ol class="pipeline">
+        <li><b>Ingest</b><span>PDFs are read page by page with pypdf; Markdown by heading. Running headers and page numbers are stripped, and section headings are tracked.</span></li>
+        <li><b>Chunk</b><span>Text is split into sentence-aligned chunks of about 900 characters with a small overlap. Chunks never cross a page or section, so each one has an exact citation.</span></li>
+        <li><b>Embed &amp; store</b><span>Each chunk is embedded locally with all-MiniLM-L6-v2 (ONNX) and stored in ChromaDB with its title, page and section.</span></li>
+        <li><b>Retrieve</b><span>The question is embedded and matched by cosine similarity, then re-ranked with a keyword bonus. Chunks below a relevance cut-off are discarded.</span></li>
+        <li><b>Ground</b><span>With a Gemini key, the model sees only the numbered chunks and must cite one for every claim, and answers without valid citations are rejected. Without a key, the extractive answerer quotes the best sentences verbatim.</span></li>
+        <li><b>Cite</b><span>Citation chips link each claim to its passage, and the original file opens at that page.</span></li>
+      </ol>
+      <p class="about-foot" id="about-foot"></p>
+      <button class="primary" value="close">Got it</button>
+    </form>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>
