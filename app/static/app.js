@@ -444,4 +444,11 @@
 
   loadHealth();
   loadDocs();
+
+  // Shareable questions: ?q=... asks on load.
+  const preset = new URLSearchParams(window.location.search).get("q");
+  if (preset) {
+    input.value = preset.slice(0, 500);
+    submit();
+  }
 })();
