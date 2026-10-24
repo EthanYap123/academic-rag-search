@@ -162,6 +162,13 @@ The [`Dockerfile`](Dockerfile) runs the FastAPI app on port 7860, with the embed
 - Scanned PDFs have no text layer and need OCR before upload.
 - Extractive mode quotes sentences rather than writing a summary. It's accurate, but less fluent than LLM mode.
 
+## What I learned
+
+- **Chunking decides answer quality more than the model does.** Splitting PDFs every N characters cut sentences in half and mixed up sections. Sentence-aligned chunks that never cross a page or heading made citations accurate.
+- **PDFs are messy.** Running headers, page numbers and footers end up in the text and pollute search results, so I strip them before chunking.
+- **Saying "I don't know" is a feature.** Without a relevance cut-off, the app confidently answered off-topic questions. Now it refuses when nothing in the documents is close enough, and it rejects any LLM answer that doesn't cite a source.
+- **Small embedding models have blind spots.** "ChatGPT" doesn't match a section about "generative AI tools". I learned to document limitations honestly instead of hiding them.
+
 ## License
 
 [MIT](LICENSE)
