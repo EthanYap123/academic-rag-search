@@ -6,7 +6,7 @@ Ask questions about policy handbooks and academic documents, and get answers bui
 
 The demo is a static build. The same chunks, embedding model and answering logic run in your browser, so it's free to host and needs no server. See [Deployment](#deployment).
 
-![Python](https://img.shields.io/badge/Python-3.12-1f5c4d) ![FastAPI](https://img.shields.io/badge/FastAPI-0.161-1f5c4d) ![ChromaDB](https://img.shields.io/badge/ChromaDB-1.5-1f5c4d) ![Tests](https://img.shields.io/badge/tests-26%20passing-1f5c4d)
+![Python](https://img.shields.io/badge/Python-3.12-1f5c4d) ![FastAPI](https://img.shields.io/badge/FastAPI-0.161-1f5c4d) ![ChromaDB](https://img.shields.io/badge/ChromaDB-1.5-1f5c4d) [![CI](https://github.com/EthanYap123/academic-rag-search/actions/workflows/ci.yml/badge.svg)](https://github.com/EthanYap123/academic-rag-search/actions/workflows/ci.yml)
 
 ## Features
 
@@ -161,3 +161,7 @@ The [`Dockerfile`](Dockerfile) runs the FastAPI app on port 7860, with the embed
 - The small embedding model works on meaning, but it doesn't know every synonym. A question about "ChatGPT" doesn't match a section about "generative AI tools", so the app refuses rather than guessing. Rephrasing fixes it, and a larger embedding model would too.
 - Scanned PDFs have no text layer and need OCR before upload.
 - Extractive mode quotes sentences rather than writing a summary. It's accurate, but less fluent than LLM mode.
+
+## License
+
+[MIT](LICENSE)
